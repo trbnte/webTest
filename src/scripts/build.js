@@ -33,6 +33,8 @@ async function buildSite() {
 
 // ホームページを更新する非同期関数
 async function updateHomepage(latestEntries) {
+  let homeHtml = await fs.readFile('src/templates/home.html', 'utf-8');
+
   const newsSection = latestEntries.map(entry => `
     <a href="/news/${entry.fields.日時}.html">
       <h2>${entry.fields.タイトル}</h2>
@@ -40,20 +42,14 @@ async function updateHomepage(latestEntries) {
     </a>
   `).join('');
 
-  const homeHtml = `
-    <!DOCTYPE html>
-    <html>
-      <body>
-        ${newsSection}
-      </body>
-    </html>
-  `;
-
+  homeHtml = homeHtml.replace('<!-- NEWS_PLACEHOLDER -->', newsSection);
   await fs.writeFile('public/index.html', homeHtml);
 }
 
 // お知らせ一覧ページを更新する非同期関数
 async function updateNewsList(entries) {
+  let newsListHtml = await fs.readFile('src/templates/news-list.html', 'utf-8');
+
   const newsItems = entries.map(entry => `
     <a href="/news/${entry.fields.日時}.html">
       <h2>${entry.fields.タイトル}</h2>
@@ -66,38 +62,32 @@ async function updateNewsList(entries) {
 
   const dateList = entries.map(entry => entry.fields.日時).join(', ');
 
-  const newsListHtml = `
-    <!DOCTYPE html>
-    <html>
-      <body>
-        ${newsItems}
-        <p>日時リスト: ${dateList}</p>
-      </body>
-    </html>
+  const newsSection = `
+    ${newsItems}
+    <p>日時リスト: ${dateList}</p>
   `;
 
+  newsListHtml = newsListHtml.replace('<!-- NEWS_PLACEHOLDER -->', newsSection);
   await fs.writeFile('public/news.html', newsListHtml);
 }
 
 // 個別の記事ページを生成する非同期関数
 async function generateArticlePages(entries) {
+  const articleTemplate = await fs.readFile('src/templates/article.html', 'utf-8');
   const dateList = entries.map(entry => entry.fields.日時).join(', ');
 
   for (const entry of entries) {
-    const articleHtml = `
-      <!DOCTYPE html>
-      <html>
-        <body>
-          <h1>${entry.fields.タイトル}</h1>
-          <p>${entry.fields.日時}</p>
-          <p>${entry.fields.カテゴリー}</p>
-          <img src="${entry.fields.画像.fields.file.url}" alt="${entry.fields.タイトル}">
-          <p>${entry.fields.本文}</p>
-          <p>日時リスト: ${dateList}</p>
-        </body>
-      </html>
+    let articleHtml = articleTemplate;
+    const articleContent = `
+      <h1>${entry.fields.タイトル}</h1>
+      <p>${entry.fields.日時}</p>
+      <p>${entry.fields.カテゴリー}</p>
+      <img src="${entry.fields.画像.fields.file.url}" alt="${entry.fields.タイトル}">
+      <p>${entry.fields.本文}</p>
+      <p>日時リスト: ${dateList}</p>
     `;
 
+    articleHtml = articleHtml.replace('<!-- NEWS_PLACEHOLDER -->', articleContent);
     await fs.writeFile(`public/news/${entry.fields.日時}.html`, articleHtml);
   }
 }
