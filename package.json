@@ -1,10 +1,15 @@
 {
-  "name": "my-website",
+  "name": "your-project-name",
   "version": "1.0.0",
-  "dependencies": {
-    "contentful": "^9.1.5"
-  },
-  "scripts": {
-    "build": "node src/scripts/build.js"
+  "lockfileVersion": 2,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "your-project-name",
+      "version": "1.0.0",
+      "dependencies": {
+        "contentful": "^9.1.5"
+      }
+    }
   }
 }
