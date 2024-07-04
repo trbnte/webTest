@@ -1,13 +1,21 @@
+// Contentful SDKをインポート。これにより、ContentfulのAPIを簡単に使用できる
 const contentful = require('contentful');
+
+// Node.jsのファイルシステムモジュールをインポート。Promiseベースの非同期操作が可能
 const fs = require('fs').promises;
+
+// ファイルパスを扱うためのNode.jsの組み込みモジュールをインポート
 const path = require('path');
 
+// Contentfulクライアントを作成。環境変数からスペースIDとアクセストークンを取得
 const client = contentful.createClient({
   space: process.env.CONTENTFUL_SPACE_ID,
   accessToken: process.env.CONTENTFUL_ACCESS_TOKEN,
 });
 
+// Contentfulから記事エントリーを取得する非同期関数
 async function getEntries() {
+  // '記事'コンテンツタイプのエントリーを日時の降順で取得
   const entries = await client.getEntries({
     content_type: '記事',
     order: '-fields.日時'
@@ -15,64 +23,84 @@ async function getEntries() {
   return entries.items;
 }
 
+// サイト全体をビルドする非同期関数
 async function buildSite() {
   const entries = await getEntries();
-
-  // ホームページの更新
   await updateHomepage(entries.slice(0, 3));
-
-  // お知らせ一覧の更新
   await updateNewsList(entries);
-
-  // 個別記事ページの生成
   await generateArticlePages(entries);
 }
 
+// ホームページを更新する非同期関数
 async function updateHomepage(latestEntries) {
-  let homeHtml = await fs.readFile('src/templates/home.html', 'utf-8');
   const newsSection = latestEntries.map(entry => `
-    <div class="news-item">
-      <span>${entry.fields.日時}</span>
-      <a href="/news/${entry.fields.カテゴリー}/${entry.sys.id}.html">${entry.fields.タイトル}</a>
-    </div>
+    <a href="/news/${entry.fields.日時}.html">
+      <h2>${entry.fields.タイトル}</h2>
+      <p>${entry.fields.日時}</p>
+    </a>
   `).join('');
-  
-  homeHtml = homeHtml.replace('<!-- NEWS_PLACEHOLDER -->', newsSection);
+
+  const homeHtml = `
+    <!DOCTYPE html>
+    <html>
+      <body>
+        ${newsSection}
+      </body>
+    </html>
+  `;
+
   await fs.writeFile('public/index.html', homeHtml);
 }
 
+// お知らせ一覧ページを更新する非同期関数
 async function updateNewsList(entries) {
-  let newsListHtml = await fs.readFile('src/templates/news-list.html', 'utf-8');
   const newsItems = entries.map(entry => `
-    <div class="news-item">
+    <a href="/news/${entry.fields.日時}.html">
       <h2>${entry.fields.タイトル}</h2>
-      <span>${entry.fields.日時}</span>
-      <span>${entry.fields.カテゴリー}</span>
+      <p>${entry.fields.日時}</p>
+      <p>${entry.fields.カテゴリー}</p>
       <img src="${entry.fields.画像.fields.file.url}" alt="${entry.fields.タイトル}">
-      <p>${entry.fields.本文.substring(0, 50)}...</p>
-      <a href="/news/${entry.fields.カテゴリー}/${entry.sys.id}.html">続きを読む</a>
-    </div>
+      <p>${entry.fields.本文}</p>
+    </a>
   `).join('');
 
-  newsListHtml = newsListHtml.replace('<!-- NEWS_ITEMS_PLACEHOLDER -->', newsItems);
-  await fs.writeFile('public/news/index.html', newsListHtml);
+  const dateList = entries.map(entry => entry.fields.日時).join(', ');
+
+  const newsListHtml = `
+    <!DOCTYPE html>
+    <html>
+      <body>
+        ${newsItems}
+        <p>日時リスト: ${dateList}</p>
+      </body>
+    </html>
+  `;
+
+  await fs.writeFile('public/news.html', newsListHtml);
 }
 
+// 個別の記事ページを生成する非同期関数
 async function generateArticlePages(entries) {
-  const articleTemplate = await fs.readFile('src/templates/article.html', 'utf-8');
-  
-  for (const entry of entries) {
-    let articleHtml = articleTemplate;
-    articleHtml = articleHtml.replace('{{TITLE}}', entry.fields.タイトル);
-    articleHtml = articleHtml.replace('{{DATE}}', entry.fields.日時);
-    articleHtml = articleHtml.replace('{{CATEGORY}}', entry.fields.カテゴリー);
-    articleHtml = articleHtml.replace('{{IMAGE_URL}}', entry.fields.画像.fields.file.url);
-    articleHtml = articleHtml.replace('{{CONTENT}}', entry.fields.本文);
+  const dateList = entries.map(entry => entry.fields.日時).join(', ');
 
-    const filePath = `public/news/${entry.fields.カテゴリー}/${entry.sys.id}.html`;
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, articleHtml);
+  for (const entry of entries) {
+    const articleHtml = `
+      <!DOCTYPE html>
+      <html>
+        <body>
+          <h1>${entry.fields.タイトル}</h1>
+          <p>${entry.fields.日時}</p>
+          <p>${entry.fields.カテゴリー}</p>
+          <img src="${entry.fields.画像.fields.file.url}" alt="${entry.fields.タイトル}">
+          <p>${entry.fields.本文}</p>
+          <p>日時リスト: ${dateList}</p>
+        </body>
+      </html>
+    `;
+
+    await fs.writeFile(`public/news/${entry.fields.日時}.html`, articleHtml);
   }
 }
 
+// サイトのビルドを開始し、エラーがあればコンソールに出力
 buildSite().catch(console.error);
