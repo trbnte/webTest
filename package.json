@@ -2,7 +2,7 @@
   "name": "your-project-name",
   "version": "1.0.0",
   "dependencies": {
-    "contentful": "^9.1.5"
+    "contentful": "^9.3.6"
   },
   "scripts": {
     "build": "node src/scripts/build.js"
